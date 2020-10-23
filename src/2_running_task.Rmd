@@ -1,0 +1,316 @@
+
+---
+title: " Machine learning for Pca"
+author: Benjamin Vittrant
+output: html_document
+---
+
+## Introduction: Preparing data
+
+Clean the memory at start
+
+```{r}
+
+rm(list = ls())
+
+```
+
+Import packages
+
+```{r}
+
+library(mlr)
+library(FSelector)
+library(SDMTools)
+library(pROC)
+library(ggplot2)
+library(progress)
+library(parallelMap)
+
+```
+
+
+Setting some parameters for the code
+
+```{r}
+Y = 'BCR_60' #variable to predict
+
+```
+
+
+Including the functions form others script
+
+```{r}
+
+source(file = 'functions/functions.R')
+
+source(file = 'functions/progress_bar.R')
+
+```
+
+Importing the data
+
+```{r}
+
+print('Importing your files human')
+df = read.table(file = '../data/BF_3_set_omic_clinic_clean.tsv', header = T, sep = '\t', row.names = 'patient')
+
+```
+
+Isolating the column study for further selection by study
+
+```{r}
+df_study = as.data.frame(df$study)
+
+```
+
+Reducing the set for first approach of the MLR package. This step should be remove if working on full data.
+
+```{r}
+df = df[,1:1000]
+```
+
+Changing the response variable TRUE/FALSE into 1/0
+
+```{r}
+if(unique(df[,Y])[1] == 0 || unique(df[,Y])[2] == 1 ){
+  print('You TRUE/FALSE value for endogenous variable. I transform it into 1/0')
+  df[which(df[,Y] == TRUE),Y] = 1
+  df[which(df[,Y] == FALSE),Y] = 0
+}
+df[,Y] = as.factor(df[,Y])
+```
+
+  
+## Beginning MLR
+
+Configuring MLR: Stop the verbose mode... defaut TRUE
+
+```{r}
+  
+configureMlr(show.info=T, show.learner.output = T)
+```
+
+
+Creating first task from the reduced data
+```{r}
+
+task = makeClassifTask(data = df,target = "BCR_60", positive = '1')
+
+```
+
+
+Selection of feature by info gain
+
+```{r}
+
+print('Preparing and selectionning features by info gain')
+im_feat = generateFilterValuesData(task , method = c("information.gain","chi.squared"))
+df_feat = im_feat$data
+
+df_feat_sel = df_feat[which(df_feat$information.gain >= nb_info_gain),]
+
+```
+
+
+Creating our working data frame by selecing the useful variables
+```{r}
+
+df_toWork = df[,c(Y,df_feat_sel$name)]
+df_toWork = cbind(df_study,df_toWork)
+colnames(df_toWork)[1] = 'study'
+
+```
+
+Separating the data by study for futur independant work on it
+
+```{r}
+df_toWork_tcga = df_toWork[which(df_toWork$study == 'TCGA'),]
+df_toWork_long = df_toWork[which(df_toWork$study == 'LONG'),]
+df_toWork_collins = df_toWork[which(df_toWork$study == 'collins'),]
+
+df_toWork = df_toWork[,-1]
+df_toWork_tcga = df_toWork_tcga[,-1]
+df_toWork_long = df_toWork_long[,-1]
+df_toWork_collins = df_toWork_collins[,-1]
+```
+
+
+Setting seed for reproductibility
+
+```{r}
+
+set.seed(123, "L'Ecuyer")
+
+```
+
+Defining global task and study task 
+
+```{r}
+
+pca.task = makeClassifTask(data = df_toWork, target = "BCR_60", positive = '1')
+pca.task$task.desc$size
+
+pca.task_tcga = makeClassifTask(data = df_toWork_tcga, target = "BCR_60", positive = '1')
+pca.task_tcga$task.desc$size
+
+pca.task_long = makeClassifTask(data = df_toWork_long, target = "BCR_60", positive = '1')
+pca.task_long$task.desc$size
+
+pca.task_collins = makeClassifTask(data = df_toWork_collins, target = "BCR_60", positive = '1')
+pca.task_collins$task.desc$size
+
+```
+
+Merging task for multi analysis
+
+```{r}
+tasks = list(pca.task, pca.task_tcga, pca.task_long, pca.task_collins)
+tasks = list(pca.task)
+```
+
+Listing all algo we want to use
+
+```{r}
+list_learner = listLearners("classif")[c("class","package")]
+```
+
+
+Choosing the algo we want to use
+
+```{r}
+
+lrns = list(
+  
+  makeLearner("classif.featureless",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.logreg",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.randomForest", predict.type = "prob"), # OK full , par.vals = list(ntree = 200, mtry = 3)
+  
+  makeLearner("classif.binomial",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.boosting",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.cforest",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.ctree",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.extraTrees",predict.type = "prob" ), # OK full
+  
+  makeLearner("classif.multinom",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.neuralnet",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.randomForestSRC",predict.type = "prob"), #OK full
+  
+  makeLearner("classif.rpart",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.penalized.lasso",predict.type = "prob"), # NOT WORKING WELL
+  
+  makeLearner("classif.penalized.ridge",predict.type = "prob"), # NOT WORKING WELL
+  
+  makeLearner("classif.cvglmnet",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.plsdaCaret",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.ksvm",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.gausspr",predict.type = "prob"), # OK full
+  
+  makeLearner("classif.probit",predict.type = "prob") # OK full
+  
+  ##makeLearner("classif.penalized.fusedlasso",predict.type = "prob") # OK full But take a lot of time
+  
+  ###makeLearner("classif.lssvm",predict.type = "response") # OK full
+  
+  ###makeLearner("classif.lvq1",predict.type = "response"),
+  
+  ###makeLearner("classif.knn", predict.type = "response"),
+  
+  ###makeLearner("classif.avNNet",predict.type = "prob"),
+  
+  ###makeLearner("classif.bartMachine",predict.type = "prob"),
+  
+  ###makeLearner("classif.lda",predict.type = "prob"),
+)
+
+
+```
+
+Defining the type of sampling we want. Need to manage carefully the iters parameters because it can take a lot of time if not running or computing clusters.
+
+```{r}
+rdesc = makeResampleDesc("Subsample", split=2/3 ,iters = 1000000)
+```
+
+
+Choosing the value we want in our benchmark object
+```{r}
+meas = list(mmce, ber, timetrain)
+
+```
+
+Running the benchmark with parallelisation (bmr). Change setting here in function of your environnement.
+
+```{r}
+NbCpu = 100
+
+parallelStartSocket(NbCpu)
+
+bmr = benchmark(lrns, tasks, rdesc, meas)
+
+# a enlever
+df = generateThreshVsPerfData(bmr, measures = list(fpr, tpr, mmce), aggregate = F)
+plotROCCurves(df)
+
+parallelStop()
+
+```
+
+
+Taking a look at the performances
+
+```{r}
+
+getBMRPerformances(bmr)
+getBMRAggrPerformances(bmr)
+getBMRPredictions(bmr)
+
+```
+
+Plotting the mmce performances
+
+```{r}
+plotBMRBoxplots(bmr, measure = mmce, style = "violin", pretty.names = FALSE) +
+  aes(color = learner.id) +
+  theme(strip.text.x = element_text(size = 8))
+
+```
+
+PLotting the ber performance
+
+```{r}
+
+plotBMRBoxplots(bmr, measure = ber, style = "violin", pretty.names = FALSE) +
+  aes(color = learner.id) +
+  theme(strip.text.x = element_text(size = 8))
+
+```
+
+
+Plotting roc curve aggregated
+
+```{r}
+df = generateThreshVsPerfData(bmr, measures = list(fpr, tpr, mmce), aggregate = T)
+plotROCCurves(df)
+```
+
+Plotting roc curve non aggregated
+
+```{r}
+df = generateThreshVsPerfData(bmr, measures = list(fpr, tpr, mmce), aggregate = F)
+plotROCCurves(df)
+```
+
+End of the script.

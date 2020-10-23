@@ -1,0 +1,111 @@
+---
+title: "Features selection"
+author: "Benjamin vittrant"
+date: "March 2, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+Importing the data
+
+```{r}
+
+print('Importing your files human')
+df = read.table(file = '../data/BF_3_set_omic_clinic_clean.tsv', header = T, sep = '\t', row.names = 'patient')
+
+```
+
+Setting some parameters for the code
+
+```{r}
+Y = 'BCR_60' #variable to predict
+
+```
+
+Isolating the column study for further selection by study
+
+```{r}
+df_study = as.data.frame(df$study)
+
+```
+
+Reducing the set for first approach of the MLR package
+
+```{r}
+#df = df[,1:1000]
+```
+
+Changing teh response variable TRUE/FALSE into 1/0
+
+```{r}
+if(unique(df[,Y])[1] == 0 || unique(df[,Y])[2] == 1 ){
+  print('You TRUE/FALSE value for endogenous variable. I transform it into 1/0')
+  df[which(df[,Y] == TRUE),Y] = 1
+  df[which(df[,Y] == FALSE),Y] = 0
+}
+df[,Y] = as.factor(df[,Y])
+```
+
+  
+## Beginning MLR
+
+Configuring MLR: Stop the verbose mode... defaut TRUE
+
+```{r}
+  
+configureMlr(show.info=T, show.learner.output = T)
+```
+
+
+Creating first task from the reduced data
+```{r}
+
+task = makeClassifTask(data = df,target = "BCR_60", positive = '1')
+
+```
+
+List all method available for feature selection
+
+```{r}
+
+listFilterMethods(desc = TRUE, tasks = FALSE, features = FALSE)
+
+```
+
+
+Selection of feature by info gain
+
+```{r}
+
+print('Preparing and selectionning features by info gain')
+im_feat = generateFilterValuesData(task , method = c("information.gain","chi.squared"))
+df_feat = im_feat$data
+
+df_feat_sel = df_feat[which(df_feat$information.gain >= nb_info_gain),]
+```
+
+
