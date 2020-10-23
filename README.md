@@ -24,3 +24,12 @@ Methods: Gene expression data were extracted from three RNA-Seq datasets cumulat
 Results: Using a random forest model, we have identified a signature composed of only three genes (JUN, HES4, PPDPF) predicting BCR with better accuracy (74.2%, BER=27%) than the clinico-pathological variables (69.2%, BER=32%) currently in use to predict PCa evolution. This score is in the range of the studies that predicted BCR in single-cohort with a higher number of patients. 
 
 Conclusions: We showed that it is possible to merge and analyze different small and heterogeneous datasets altogether to obtain a better signature than if they were analyzed individually, thus reducing the need for very large cohorts. This study demonstrates the feasibility to regroup different small datasets in one larger to identify a predictive genomic signature that would benefit PCa patients.
+
+# Scripts 
+In the scripts directory you can find 2 files :
+
+- the first one (1_features_selection) describe the features selection part using info gain
+
+- the second (2_running_task) describe the task methodology used by MLR to run various machine learning algorithms
+
+Be aware that new version of MLR ha been created since we performed this work and the package used is no longer maintained. We advised you to use their last versions with the same methodology in general.
