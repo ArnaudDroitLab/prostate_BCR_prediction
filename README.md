@@ -2,6 +2,7 @@
 
 ## Dataset description (training_data_three_Pca_cohorts.tsv)
 We retrieved three different RNA-Seq datasets of radical prostatectomy specimens with the associated clinical features. The first dataset is from The Genome Cancer Atlas (TCGA) cohort in the Prostate Adenocarcinoma (PRAD) project. The second dataset (GSE54460) is from a cohort constituted by Long et al. and the third dataset was provided by Prof C. Collins from the Vancouver Prostate Cancer Center (VPCC).
+
 training_data_three_Pca_cohorts.tsv reprensent the read counts of these datasets, processed with Trimmomatic and Kallisto. 
 
 Quality of the BCR event data is dependent on patient clinical follow-up. A patient followed only a few weeks or months after surgery without showing BCR would be considered as a non-BCR case. These cases are a bias since the patient could have experienced a BCR event after the period of follow-up. Consequently, we discarded from our analysis the patients with no BCR whose follow-up was inferior to 60 months.
